@@ -412,6 +412,7 @@ __libc_res_nsend(res_state statp, const u_char *buf, int buflen,
 
 	DprintQ((statp->options & RES_DEBUG) || (statp->pfcode & RES_PRF_QUERY),
 		(stdout, ";; res_send()\n"), buf, buflen);
+	ucresolv_debug("res_send()\n");
 	v_circuit = ((statp->options & RES_USEVC)
 		     || buflen > PACKETSZ
 		     || buflen2 > PACKETSZ);
@@ -543,6 +544,7 @@ __libc_res_nsend(res_state statp, const u_char *buf, int buflen,
 		       ((statp->pfcode & RES_PRF_REPLY) &&
 			(statp->pfcode & RES_PRF_HEAD1)),
 		       (stdout, ";; got answer:\n"));
+		ucresolv_debug("got answer\n");
 
 		DprintQ((statp->options & RES_DEBUG) ||
 			(statp->pfcode & RES_PRF_REPLY),
@@ -783,6 +785,7 @@ send_vc(res_state statp,
 		if (statp->_vcsock < 0) {
 			*terrno = errno;
 			Perror(statp, stderr, "socket(vc)", errno);
+			ucresolv_error("socket(vc)\n");
 			if (resplen2 != NULL)
 			  *resplen2 = 0;
 			return (-1);
@@ -794,6 +797,7 @@ send_vc(res_state statp,
 			    : sizeof (struct sockaddr_in6)) < 0) {
 			*terrno = errno;
 			Aerror(statp, stderr, "connect/vc", errno, nsap);
+			ucresolv_error("connect/vc\n");
 			return close_and_return_error (statp, resplen2);
 		}
 		statp->_flags |= RES_F_VC;
@@ -818,6 +822,7 @@ send_vc(res_state statp,
 	if (TEMP_FAILURE_RETRY (writev(statp->_vcsock, iov, niov)) != explen) {
 		*terrno = errno;
 		Perror(statp, stderr, "write failed", errno);
+		ucresolv_error("write failed\n");
 		return close_and_return_error (statp, resplen2);
 	}
 	/*
@@ -840,6 +845,7 @@ send_vc(res_state statp,
 	}
 	if (n <= 0) {
 		Perror(statp, stderr, "read failed", *terrno);
+		ucresolv_error("read failed\n");
 		/*
 		 * A long running process might get its TCP
 		 * connection reset if the remote server was
@@ -906,6 +912,7 @@ send_vc(res_state statp,
 		} else {
 			Dprint(statp->options & RES_DEBUG,
 				(stdout, ";; response truncated\n")
+				ucresolv_debug("response truncated\n");
 			);
 			truncating = 1;
 			len = *thisanssizp;
@@ -919,6 +926,7 @@ send_vc(res_state statp,
 		 */
 		Dprint(statp->options & RES_DEBUG,
 		       (stdout, ";; undersized: %d\n", len));
+		ucresolv_debug("undersized: %d\n", len);
 		*terrno = EMSGSIZE;
 		return close_and_return_error (statp, resplen2);
 	}
@@ -933,6 +941,7 @@ send_vc(res_state statp,
 	}
 	if (__glibc_unlikely (n <= 0))       {
 		Perror(statp, stderr, "read(vc)", *terrno);
+		ucresolv_error("read(vc)\n");
 		return close_and_return_error (statp, resplen2);
 	}
 	if (__glibc_unlikely (truncating))       {
@@ -1012,6 +1021,7 @@ reopen (res_state statp, int *terrno, int ns)
 		if (EXT(statp).nssocks[ns] < 0) {
 			*terrno = errno;
 			Perror(statp, stderr, "socket(dg)", errno);
+			ucresolv_error("socket(dg)\n");
 			return (-1);
 		}
 
@@ -1037,6 +1047,7 @@ reopen (res_state statp, int *terrno, int ns)
 		if (connect(EXT(statp).nssocks[ns], nsap, slen) < 0) {
 		DIAG_POP_NEEDS_COMMENT;
 			Aerror(statp, stderr, "connect(dg)", errno, nsap);
+			ucresolv_error("connect_dg\n");
 			//__res_iclose(statp, false);
 			res_nclose(statp);
 			return (0);
@@ -1183,6 +1194,7 @@ send_dg(res_state statp,
 	}
 	if (n == 0) {
 		Dprint(statp->options & RES_DEBUG, (stdout, ";; timeout\n"));
+		ucresolv_debug("timeout\n");
 		if (resplen > 1 && (recvresp1 || (buf2 != NULL && recvresp2)))
 		  {
 		    /* There are quite a few broken name servers out
@@ -1250,7 +1262,7 @@ send_dg(res_state statp,
 		else
 		  {
 		    ssize_t sr;
-		    ucresolv_debug("send...");
+		    ucresolv_debug("send...\n");
 		    if (nwritten != 0)
 		      sr = send (pfd[0].fd, buf2, buflen2, MSG_NOSIGNAL);
 		    else
@@ -1327,12 +1339,13 @@ send_dg(res_state statp,
 			Dprint(statp->options & RES_DEBUG,
 			       (stdout, ";; response may be truncated (UDP)\n")
 			);
+			ucresolv_debug("response may be truncated (UDP)\n");
 		}
 
 		HEADER *anhp = (HEADER *) *thisansp;
 		socklen_t fromlen = sizeof(struct sockaddr_in6);
 		assert (sizeof(from) <= fromlen);
-		ucresolv_debug("recvfrom..");
+		ucresolv_debug("recvfrom..\n");
 		*thisresplenp = recvfrom(pfd[0].fd, (char*)*thisansp,
 					 *thisanssizp, 0,
 					(struct sockaddr *)&from, &fromlen);
